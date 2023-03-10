@@ -1,0 +1,21 @@
+[package]
+name = "rusty-chain"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sha2 = "0.10.6"
+rust-crypto = "^0.2" # for the hash-algorithm
+bincode = "1.3" # for serialize and deserialize
+failure = "0.1" # for error handling
+sled = "0.34" # for data persistence (embedded DB)
+log = "0.4" # for logging
+env_logger = "0.10.0"
+clap = "4.0.29" # for command-line tools
+bitcoincash-addr = "0.5.2" # for creating wallet addresses
+rand = "0.8.5"
+merkle-cbt = "0.3.2"
+serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0"
