@@ -1,7 +1,18 @@
+use cli::Cli;
+
 mod block;
 mod blockchain;
+mod cli;
 mod errors;
 
-fn main() {
-    println!("Hello, world!");
+use crate::errors::Result;
+
+// cargo run print-chain
+// cargo run add-block "value"
+
+fn main() -> Result<()> {
+    let mut cli = Cli::new()?;
+    cli.run()?;
+
+    Ok(())
 }
