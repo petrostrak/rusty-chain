@@ -18,6 +18,10 @@ pub struct Block {
 }
 
 impl Block {
+    pub fn get_prev_hash(&self) -> String {
+        self.prev_block_hash.clone()
+    }
+
     pub fn get_hash(&self) -> String {
         self.hash.clone()
     }

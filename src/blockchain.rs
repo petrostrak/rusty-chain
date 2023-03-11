@@ -4,10 +4,15 @@ use sled::Db;
 
 const TARGET_HEXT: usize = 4;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Blockchain {
     current_hash: String,
     db: sled::Db,
+}
+
+pub struct BlockchainIter<'a> {
+    current_hash: String,
+    bc: &'a Blockchain,
 }
 
 impl Blockchain {
@@ -44,5 +49,33 @@ impl Blockchain {
         self.db.insert("LAST", new_block.get_hash().as_bytes())?;
         self.current_hash = new_block.get_hash();
         Ok(())
+    }
+
+    pub fn iter(&self) -> BlockchainIter {
+        BlockchainIter {
+            current_hash: self.current_hash.clone(),
+            bc: &self,
+        }
+    }
+}
+
+impl<'a> Iterator for BlockchainIter<'a> {
+    type Item = Block;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Ok(encode_block) = self.bc.db.get(&self.current_hash) {
+            return match encode_block {
+                Some(b) => {
+                    if let Ok(block) = bincode::deserialize::<Block>(&b) {
+                        self.current_hash = block.get_prev_hash();
+                        Some(block)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            };
+        }
+        None
     }
 }
