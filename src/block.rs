@@ -3,6 +3,8 @@ use crypto::sha2::Sha256;
 use log::info;
 use std::time::SystemTime;
 
+pub type Result<T> = std::result::Result<T, failure::Error>;
+
 const TARGET_HEXT: usize = 4;
 
 pub struct Block {
@@ -42,7 +44,7 @@ impl Block {
             TARGET_HEXT,
             self.nonce,
         );
-        let bytes: Vec<u8> = bitcode::serialize(&content)?;
+        let bytes: Vec<u8> = bincode::serialize(&content)?;
         Ok(bytes)
     }
     fn validate(&self) -> Result<bool> {
