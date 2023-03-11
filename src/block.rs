@@ -7,6 +7,7 @@ pub type Result<T> = std::result::Result<T, failure::Error>;
 
 const TARGET_HEXT: usize = 4;
 
+#[derive(Debug, Clone)]
 pub struct Block {
     timestamp: u128, // time when block is created
     transactions: String,
@@ -16,11 +17,20 @@ pub struct Block {
     nonce: i32, // stores entire history of the block
 }
 
+#[derive(Debug)]
 pub struct Blockchain {
     blocks: Vec<Block>,
 }
 
 impl Block {
+    pub fn get_hash(&self) -> String {
+        self.hash.clone()
+    }
+
+    pub fn new_genesis_block() -> Self {
+        Block::new_block(String::from("Genesis Block"), String::new(), 0).unwrap()
+    }
+
     pub fn new_block(data: String, prev_block_hash: String, height: usize) -> Result<Block> {
         let timestamp: u128 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
@@ -65,6 +75,20 @@ impl Block {
         let mut hasher = Sha256::new();
         hasher.input(&data[..]);
         self.hash = hasher.result_str();
+        Ok(())
+    }
+}
+
+impl Blockchain {
+    pub fn new() -> Self {
+        Blockchain {
+            blocks: vec![Block::new_genesis_block()],
+        }
+    }
+    pub fn add_block(&mut self, data: String) -> Result<()> {
+        let prev = self.blocks.last().unwrap();
+        let new_block = Block::new_block(data, prev.get_hash(), TARGET_HEXT)?;
+        self.blocks.push(new_block);
         Ok(())
     }
 }
