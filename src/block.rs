@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::{errors::Result, transaction::Transaction};
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use log::info;
@@ -10,7 +10,7 @@ const TARGET_HEXT: usize = 4;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     timestamp: u128, // time when block is created
-    transactions: String,
+    transactions: Vec<Transaction>,
     prev_block_hash: String,
     hash: String,
     height: usize,
@@ -18,6 +18,10 @@ pub struct Block {
 }
 
 impl Block {
+    pub fn get_transaction(&self) -> &Vec<Transaction> {
+        &self.transactions
+    }
+
     pub fn get_prev_hash(&self) -> String {
         self.prev_block_hash.clone()
     }
@@ -26,11 +30,15 @@ impl Block {
         self.hash.clone()
     }
 
-    pub fn new_genesis_block() -> Self {
-        Block::new_block(String::from("Genesis Block"), String::new(), 0).unwrap()
+    pub fn new_genesis_block(coinbase: Transaction) -> Self {
+        Block::new_block(vec![coinbase], String::new(), 0).unwrap()
     }
 
-    pub fn new_block(data: String, prev_block_hash: String, height: usize) -> Result<Block> {
+    pub fn new_block(
+        data: Vec<Transaction>,
+        prev_block_hash: String,
+        height: usize,
+    ) -> Result<Block> {
         let timestamp: u128 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_millis();
@@ -87,9 +95,9 @@ mod tests {
     #[test]
     fn test_blockchain() {
         let mut b: Blockchain = Blockchain::new().unwrap();
-        b.add_block("data".to_string());
-        b.add_block("data2".to_string());
-        b.add_block("data3".to_string());
+        // b.add_block("data".to_string());
+        // b.add_block("data2".to_string());
+        // b.add_block("data3".to_string());
 
         for item in b.iter() {
             println!("item {:?}", item)
