@@ -1,10 +1,12 @@
-use std::process::exit;
-
-use clap::{Arg, Command};
-
 use crate::blockchain::Blockchain;
 use crate::errors::Result;
+use crate::server::Server;
 use crate::transaction::Transaction;
+use crate::utxoset::UTXOSet;
+use crate::wallets::{Wallet, Wallets};
+use bitcoincash_addr::Address;
+use clap::{arg, Command};
+use std::process::exit;
 
 pub struct Cli {}
 
@@ -16,45 +18,93 @@ impl Cli {
         let matches = Command::new("rusty-chain")
             .version("0.1")
             .author("pit.trak@gmail.com")
-            .about("blockchain in Rust: a simple blockchain")
-            .subcommand(Command::new("print-chain").about("print all the chain blocks"))
+            .about("blockchain in rust: a simple blockchain")
+            .subcommand(Command::new("printchain").about("print all the chain blocks"))
+            .subcommand(Command::new("createwallet").about("create a wallet"))
+            .subcommand(Command::new("listaddresses").about("list all addresses"))
+            .subcommand(Command::new("reindex").about("reindex UTXO"))
             .subcommand(
                 Command::new("get-balance")
-                    .about("get balance in the blockchain")
-                    .arg(Arg::new("ADDRESS")),
+                    .about("get balance in the blochain")
+                    .arg(arg!(<ADDRESS>"'The Address it get balance for'")),
+            )
+            .subcommand(
+                Command::new("start-node")
+                    .about("start the node server")
+                    .arg(arg!(<PORT>"'the port server bind to locally'")),
             )
             .subcommand(
                 Command::new("create")
-                    .about("create new blockchain")
-                    .arg(Arg::new("ADDRESS")),
+                    .about("Create new blochain")
+                    .arg(arg!(<ADDRESS>"'The address to send gensis block reqward to' ")),
             )
             .subcommand(
                 Command::new("send")
-                    .about("send in the blockchain")
-                    .arg(Arg::new("FROM"))
-                    .arg(Arg::new("TO"))
-                    .arg(Arg::new("AMOUNT")),
+                    .about("send  in the blockchain")
+                    .arg(arg!(<FROM>" 'Source wallet address'"))
+                    .arg(arg!(<TO>" 'Destination wallet address'"))
+                    .arg(arg!(<AMOUNT>" 'Destination wallet address'"))
+                    .arg(arg!(-m --mine " 'the from address mine immediately'")),
+            )
+            .subcommand(
+                Command::new("start-miner")
+                    .about("start the minner server")
+                    .arg(arg!(<PORT>" 'the port server bind to locally'"))
+                    .arg(arg!(<ADDRESS>" 'wallet address'")),
             )
             .get_matches();
 
+        if let Some(ref matches) = matches.subcommand_matches("start-miner") {
+            let port = if let Some(port) = matches.get_one::<String>("PORT") {
+                port
+            } else {
+                println!("PORT not supply!: usage");
+                exit(1)
+            };
+
+            let address = if let Some(address) = matches.get_one::<String>("ADDRESS") {
+                address
+            } else {
+                println!("ADDRESS not supply!: usage");
+                exit(1)
+            };
+            let bc = Blockchain::new()?;
+            let utxo_set = UTXOSet { blockchain: bc };
+            let server = Server::new(port, address, utxo_set)?;
+            server.start_server()?;
+        }
+
+        if let Some(ref matches) = matches.subcommand_matches("start-node") {
+            if let Some(port) = matches.get_one::<String>("PORT") {
+                let bc = Blockchain::new()?;
+                let utxo_set = UTXOSet { blockchain: bc };
+                let server = Server::new(port, "", utxo_set)?;
+                server.start_server()?;
+            }
+        }
+
+        if let Some(_) = matches.subcommand_matches("create-wallet") {
+            println!("address: {}", cmd_create_wallet()?);
+        }
+        if let Some(_) = matches.subcommand_matches("reindex") {
+            let count = cmd_reindex()?;
+            println!("Done! There are {} transactions in the UTXO set.", count);
+        }
+
+        if let Some(_) = matches.subcommand_matches("listaddresses") {
+            cmd_list_address()?;
+        }
+
         if let Some(ref matches) = matches.subcommand_matches("create") {
             if let Some(address) = matches.get_one::<String>("ADDRESS") {
-                let address = String::from(address);
-                Blockchain::create_blockchain(address.clone());
-                println!("create blockchain");
+                cmd_create_blockchain(address)?;
             }
         }
 
         if let Some(ref matches) = matches.subcommand_matches("get-balance") {
             if let Some(address) = matches.get_one::<String>("ADDRESS") {
-                let address = String::from(address);
-                let bc = Blockchain::new()?;
-                let utxos = bc.find_UTXO(&address);
-                let mut balance = 0;
-                for out in utxos {
-                    balance += out.value;
-                }
-                println!("Balance of '{}'; {}", address, balance);
+                let balance = cmd_get_balance(address)?;
+                println!("Balance: {}\n", balance);
             }
         }
 
@@ -62,28 +112,33 @@ impl Cli {
             let from = if let Some(address) = matches.get_one::<String>("FROM") {
                 address
             } else {
-                println!("'FROM' not supplied");
-                exit(1);
+                println!("from not supply!: usage");
+                exit(1)
             };
 
             let to = if let Some(address) = matches.get_one::<String>("TO") {
                 address
             } else {
-                println!("'TO' not supplied");
-                exit(1);
+                println!("from not supply!: usage");
+                exit(1)
             };
 
-            let amount = if let Some(amount) = matches.get_one::<String>("AMOUNT") {
+            let amount: i32 = if let Some(amount) = matches.get_one::<String>("AMOUNT") {
                 amount.parse()?
             } else {
-                println!("'AMOUNT' not supplied");
-                exit(1);
+                println!("from not supply!: usage");
+                exit(1)
             };
 
-            let mut bc = Blockchain::new()?;
-            let tx = Transaction::new_UTXO(from, to, amount, &bc)?;
-            bc.add_block(vec![tx]);
-            println!("success!");
+            if matches.contains_id("mine") {
+                cmd_send(from, to, amount, true)?;
+            } else {
+                cmd_send(from, to, amount, false)?;
+            }
+
+            /*else {
+                println!("Not printing testing lists...");
+            }*/
         }
 
         if let Some(_) = matches.subcommand_matches("print-chain") {
@@ -94,10 +149,76 @@ impl Cli {
     }
 }
 
+fn cmd_send(from: &str, to: &str, amount: i32, mine_now: bool) -> Result<()> {
+    let bc = Blockchain::new()?;
+    let mut utxo_set = UTXOSet { blockchain: bc };
+    let wallets = Wallets::new()?;
+    let wallet = wallets.get_wallet(from).unwrap();
+    let tx = Transaction::new_UTXO(wallet, to, amount, &utxo_set)?;
+    if mine_now {
+        let cbtx = Transaction::new_coinbase(from.to_string(), String::from("reward!"))?;
+        let new_block = utxo_set.blockchain.mine_block(vec![cbtx, tx])?;
+
+        utxo_set.update(&new_block)?;
+    } else {
+        Server::send_transaction(&tx, utxo_set)?;
+    }
+
+    println!("success!");
+    Ok(())
+}
+
+fn cmd_create_wallet() -> Result<String> {
+    let mut ws = Wallets::new()?;
+    let address = ws.create_wallet();
+    ws.save_all()?;
+    Ok(address)
+}
+
+fn cmd_reindex() -> Result<i32> {
+    let bc = Blockchain::new()?;
+    let utxo_set = UTXOSet { blockchain: bc };
+    utxo_set.reindex()?;
+    utxo_set.count_transactions()
+}
+
+fn cmd_create_blockchain(address: &str) -> Result<()> {
+    let address = String::from(address);
+    let bc = Blockchain::create_blockchain(address)?;
+
+    let utxo_set = UTXOSet { blockchain: bc };
+    utxo_set.reindex()?;
+    println!("create blockchain");
+    Ok(())
+}
+
+fn cmd_get_balance(address: &str) -> Result<i32> {
+    let pub_key_hash = Address::decode(address).unwrap().body;
+    let bc = Blockchain::new()?;
+    let utxo_set = UTXOSet { blockchain: bc };
+    let utxos = utxo_set.find_UTXO(&pub_key_hash)?;
+
+    let mut balance = 0;
+    for out in utxos.outputs {
+        balance += out.value;
+    }
+    Ok(balance)
+}
+
 fn cmd_print_chain() -> Result<()> {
     let bc = Blockchain::new()?;
     for b in bc.iter() {
         println!("{:#?}", b);
+    }
+    Ok(())
+}
+
+fn cmd_list_address() -> Result<()> {
+    let ws = Wallets::new()?;
+    let addresses = ws.get_all_addresses();
+    println!("addresses: ");
+    for ad in addresses {
+        println!("{}", ad);
     }
     Ok(())
 }
