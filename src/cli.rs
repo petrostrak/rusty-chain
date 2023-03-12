@@ -19,9 +19,9 @@ impl Cli {
             .version("0.1")
             .author("pit.trak@gmail.com")
             .about("blockchain in rust: a simple blockchain")
-            .subcommand(Command::new("printchain").about("print all the chain blocks"))
-            .subcommand(Command::new("createwallet").about("create a wallet"))
-            .subcommand(Command::new("listaddresses").about("list all addresses"))
+            .subcommand(Command::new("print-chain").about("print all the chain blocks"))
+            .subcommand(Command::new("create-wallet").about("create a wallet"))
+            .subcommand(Command::new("list-addresses").about("list all addresses"))
             .subcommand(Command::new("reindex").about("reindex UTXO"))
             .subcommand(
                 Command::new("get-balance")
@@ -91,7 +91,7 @@ impl Cli {
             println!("Done! There are {} transactions in the UTXO set.", count);
         }
 
-        if let Some(_) = matches.subcommand_matches("listaddresses") {
+        if let Some(_) = matches.subcommand_matches("list-addresses") {
             cmd_list_address()?;
         }
 
@@ -135,10 +135,6 @@ impl Cli {
             } else {
                 cmd_send(from, to, amount, false)?;
             }
-
-            /*else {
-                println!("Not printing testing lists...");
-            }*/
         }
 
         if let Some(_) = matches.subcommand_matches("print-chain") {
